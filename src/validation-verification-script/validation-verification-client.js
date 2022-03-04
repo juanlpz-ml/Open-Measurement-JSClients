@@ -3,9 +3,9 @@ const {packageExport} = goog.require('omid.common.exporter');
 const {AdEventType} = goog.require('omid.common.constants');
 const VerificationClient = goog.require('omid.verificationClient.VerificationClient');
 /** @const {string} the default address for the logs.*/
-const DefaultLogServer = 'http://mercadolibre.com/sendMessage?msg=';
+const DefaultLogServer = 'https://mercadolibre.cl/sendMessage?msg=';
 var timeoutHandle = null;
-var wasSend = false;
+var sent = false;
 /**
  * OMID ValidationVerificationClient.
  * Simple validation script example.
