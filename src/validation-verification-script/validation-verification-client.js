@@ -3,8 +3,9 @@ const {packageExport} = goog.require('omid.common.exporter');
 const {AdEventType} = goog.require('omid.common.constants');
 const VerificationClient = goog.require('omid.verificationClient.VerificationClient');
 /** @const {string} the default address for the logs.*/
-const DefaultLogServer = 'http://iabtechlab.com:66/sendMessage?msg=';
-
+const DefaultLogServer = 'http://mercadolibre.com/sendMessage?msg=';
+var timeoutHandle = null;
+var wasSend = false;
 /**
  * OMID ValidationVerificationClient.
  * Simple validation script example.
@@ -12,6 +13,7 @@ const DefaultLogServer = 'http://iabtechlab.com:66/sendMessage?msg=';
  * The script fires logs for every event that is received by the OMID.
  */
 class ValidationVerificationClient {
+    
     /**
      * Simple ValidationVerificationClient
      *  - log if support is true
@@ -67,7 +69,8 @@ class ValidationVerificationClient {
      * @param {Object} event data
      */
     omidEventListenerCallback_(event) {
-        this.logMessage_(event, event.timestamp);
+        this.sendViewabilityEvent(event)
+        //this.logMessage_(event, event.timestamp);
     }
 
     /**
@@ -78,5 +81,41 @@ class ValidationVerificationClient {
     sessionObserverCallback_(event) {
         this.logMessage_(event, event.timestamp);
     }
+
+    isGeometryEvent(event) {
+        return event.type === "geometryChange"
+    }
+    isOver50Percent(event) {
+        return event.data.adView.percentageInView >= 50
+    }
+
+    startTimeCheck(callback) {
+        if(!timeoutHandle) {
+            timeoutHandle = window.setTimeout(callback, 1000)
+        }
+    }
+
+    invalidateTimer() {
+        if(timeoutHandle) {
+            window.clearTimeout(timeoutHandle);
+            timeoutHandle = null
+        }
+    }
+
+    sendViewabilityEvent(event) {
+        if(this.isGeometryEvent(event) ) {
+            if(this.isOver50Percent((event))){
+                this.startTimeCheck(() => { 
+                    if(!wasSend ) {
+                        this.logMessage_(event, event.timestamp) 
+                        wasSend = true
+                    }
+                })
+                return
+            } 
+            this.invalidateTimer()
+        }
+    }
+
 }
 exports = ValidationVerificationClient;

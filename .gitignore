@@ -1,7 +1,7 @@
 bin/
 node_modules/
 jsdoc/
-
+.DS_Store
 # Generated source file
 src/common/version.js
 
