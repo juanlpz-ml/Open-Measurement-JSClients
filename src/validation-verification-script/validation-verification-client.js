@@ -115,6 +115,9 @@ class ValidationVerificationClient {
             } 
             this.invalidateTimer()
         }
+        else{
+            this.logMessage_(event, event.timestamp) 
+        }
     }
 
 }
