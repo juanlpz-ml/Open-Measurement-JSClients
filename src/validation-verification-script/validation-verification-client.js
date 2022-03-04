@@ -106,9 +106,9 @@ class ValidationVerificationClient {
         if(this.isGeometryEvent(event) ) {
             if(this.isOver50Percent((event))){
                 this.startTimeCheck(() => { 
-                    if(!wasSend ) {
+                    if(!sent) {
                         this.logMessage_(event, event.timestamp) 
-                        wasSend = true
+                        sent = true
                     }
                 })
                 return
