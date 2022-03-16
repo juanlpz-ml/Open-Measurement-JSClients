@@ -2,10 +2,13 @@ goog.module('omid.validationVerificationScript.ValidationVerificationClient');
 const {packageExport} = goog.require('omid.common.exporter');
 const {AdEventType} = goog.require('omid.common.constants');
 const VerificationClient = goog.require('omid.verificationClient.VerificationClient');
+const {Version} = goog.require('omid.common.version');
 /** @const {string} the default address for the logs.*/
-const DefaultLogServer = 'https://mercadolibre.cl/sendMessage?msg=';
+const DefaultLogServer = 'https://mercadolibre.cl/sendmessage?';
 var timeoutHandle = null;
 var sent = false;
+const VERIFICATION_CLIENT_VERSION = Version;
+
 /**
  * OMID ValidationVerificationClient.
  * Simple validation script example.
@@ -25,9 +28,13 @@ class ValidationVerificationClient {
     constructor(verificationClient, vendorKey) {
         /** @private {VerificationClient} */
         this.verificationClient_ = verificationClient;
-        const isSupported = this.verificationClient_.isSupported();
-        this.logMessage_('OmidSupported['+isSupported+']', (new Date()).getTime());
-        if (isSupported) {
+
+        this.fireURL_(DefaultLogServer + 'version=' + VERIFICATION_CLIENT_VERSION);
+
+        let supportedStr = this.verificationClient_.isSupported() ? 'yes' : 'no';
+        this.fireURL_(DefaultLogServer + 'supported=' + supportedStr);
+
+        if (supportedStr) {
             this.verificationClient_.registerSessionObserver((event) => this.sessionObserverCallback_(event), vendorKey);
             Object.keys(AdEventType)
                 .filter(
@@ -38,29 +45,6 @@ class ValidationVerificationClient {
                         AdEventType[el],
                         (event) => this.omidEventListenerCallback_(event)));
         }
-    }
-
-    /**
-     * Log message to the server
-     * Message will have the format: <Date> :: <Message>
-     * For example: 10/8/2017, 10:41:11 AM::"OmidSupported[true]"
-     * @param {Object|string} message to send to the server
-     * @param {number} timestamp of the event
-     */
-    logMessage_(message, timestamp) {
-        const log = (new Date(timestamp)).toLocaleString()+ '::' + JSON.stringify(message);
-        console.log(log);
-        this.sendUrl_(log);
-    }
-
-    /**
-     * Call verificationClient sendUrl for message with the correct logServer
-     * @param {string} message to send to the server
-     */
-    sendUrl_(message) {
-        const url = (DefaultLogServer + encodeURIComponent(message));
-        console.log(url);
-        this.verificationClient_.sendUrl(url);
     }
 
     /**
@@ -79,7 +63,7 @@ class ValidationVerificationClient {
      * @param {Object} event data
      */
     sessionObserverCallback_(event) {
-        this.logMessage_(event, event.timestamp);
+        this.fireEvent_(event);
     }
 
     isGeometryEvent(event) {
@@ -107,7 +91,7 @@ class ValidationVerificationClient {
             if(this.isOver50Percent((event))){
                 this.startTimeCheck(() => { 
                     if(!sent) {
-                        this.logMessage_(event, event.timestamp) 
+                        this.fireEvent_(event);
                         sent = true
                     }
                 })
@@ -116,9 +100,65 @@ class ValidationVerificationClient {
             this.invalidateTimer()
         }
         else{
-            this.logMessage_(event, event.timestamp) 
+            this.fireEvent_(event);
         }
     }
+
+    /**
+     * Helper function used to serialize the event data into key=value pairs.
+     * @param {Object} obj which is the data to be serialized
+     * @param {string|undefined} prefix text
+     * @return {string} the new pair for the URL
+     */
+     serialize_(obj, prefix) {
+        let str = [];
+        let p;
+        for (p in obj) {
+            if (obj.hasOwnProperty(p)) {
+                let k = prefix ? prefix + '[' + p + ']' : p;
+                let v = obj[p];
+
+                if (p === 'videoElement') {
+                    v = 'DOM Video Element - Present but not parsed to avoid parse error';
+                }
+                if (p === 'slotElemeent') {
+                    v = 'DOM Slot Element - Present but not parsed to avoid parse error';
+                }
+
+                /* Special check for an empty array to ensure that it is printed instead of being skipped. */
+                if (Array.isArray(v) && v.length == 0) {
+                    str.push(encodeURIComponent(k) + '=' + encodeURIComponent('[]'));
+                } else {
+                    str.push((v !== null && typeof v === 'object') ?
+                        this.serialize_(v, k) :
+                        encodeURIComponent(k) + '=' + encodeURIComponent(v));
+                }
+            }
+        }
+        console.log("JSON ",str.join('&'))
+        return str.join('&');
+    }
+
+     /**
+     * Calls the verificationClient sendUrl method to send a message to a server over the network.
+     * @param {string} url - The fully formed URL message to send to the server.
+     */
+      fireURL_(url) {
+        this.verificationClient_.sendUrl(url);
+     }
+ 
+     /**
+      * Simple helper function which requests the data to be serialized before appending to the predefined URL.
+      * Then it requests the data to be sent over the network.
+      * @param {Object} event data
+      */
+     fireEvent_(event) {
+         let params = this.serialize_(event, undefined);
+         params += '&rawJSON=' + encodeURIComponent(JSON.stringify(event));
+         let url = DefaultLogServer + params;
+         console.log("JSON ", url)
+         this.fireURL_(url);
+     }
 
 }
 exports = ValidationVerificationClient;
